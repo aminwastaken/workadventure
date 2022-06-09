@@ -1,0 +1,242 @@
+{
+  local env = std.extVar("env"),
+  local namespace = env.DEPLOY_REF,
+  local tag = namespace,
+  local url = namespace+".test.workadventu.re",
+  // develop branch does not use admin because of issue with SSL certificate of admin as of now.
+  local adminUrl = if std.objectHas(env, 'ADMIN_API_URL') then env.ADMIN_API_URL else null,
+  "$schema": "https://raw.githubusercontent.com/thecodingmachine/deeployer/master/deeployer.schema.json",
+  "version": "1.0",
+  "containers": {
+     "back1": {
+       "image": "thecodingmachine/workadventure-back:"+tag,
+       "host": {
+         "url": "api1-"+url,
+         "containerPort": 8080
+       },
+       "ports": [8080, 50051],
+       "env": {
+         "SECRET_KEY": "tempSecretKeyNeedsToChange",
+         "JITSI_ISS": env.JITSI_ISS,
+         "JITSI_URL": env.JITSI_URL,
+         "SECRET_JITSI_KEY": env.SECRET_JITSI_KEY,
+         "TURN_STATIC_AUTH_SECRET": env.TURN_STATIC_AUTH_SECRET,
+         "REDIS_HOST": "redis",
+         "PROMETHEUS_AUTHORIZATION_TOKEN": "promToken",
+       } + (if adminUrl != null then {
+         "ADMIN_API_URL": adminUrl,
+         "ADMIN_API_TOKEN": env.ADMIN_API_TOKEN,
+       } else {})
+     },
+     "back2": {
+            "image": "thecodingmachine/workadventure-back:"+tag,
+            "host": {
+              "url": "api2-"+url,
+              "containerPort": 8080
+            },
+            "ports": [8080, 50051],
+            "env": {
+              "SECRET_KEY": "tempSecretKeyNeedsToChange",
+              "JITSI_ISS": env.JITSI_ISS,
+              "JITSI_URL": env.JITSI_URL,
+              "SECRET_JITSI_KEY": env.SECRET_JITSI_KEY,
+              "TURN_STATIC_AUTH_SECRET": env.TURN_STATIC_AUTH_SECRET,
+              "REDIS_HOST": "redis",
+              "PROMETHEUS_AUTHORIZATION_TOKEN": "promToken",
+            } + (if adminUrl != null then {
+              "ADMIN_API_URL": adminUrl,
+              "ADMIN_API_TOKEN": env.ADMIN_API_TOKEN,
+            } else {})
+          },
+     "pusher": {
+            "replicas": 2,
+            "image": "thecodingmachine/workadventure-pusher:"+tag,
+            "host": {
+              "url": "pusher-"+url,
+            },
+            "ports": [8080],
+            "env": {
+              "SECRET_KEY": "tempSecretKeyNeedsToChange",
+              "JITSI_ISS": env.JITSI_ISS,
+              "JITSI_URL": env.JITSI_URL,
+              "API_URL": "back1:50051,back2:50051",
+              "SECRET_JITSI_KEY": env.SECRET_JITSI_KEY,
+              "FRONT_URL": "https://play-"+url,
+              "PROMETHEUS_AUTHORIZATION_TOKEN": "promToken",
+            } + (if adminUrl != null then {
+              "ADMIN_API_URL": adminUrl,
+              "ADMIN_API_TOKEN": env.ADMIN_API_TOKEN,
+              "ADMIN_SOCKETS_TOKEN": env.ADMIN_SOCKETS_TOKEN,
+              "OPID_CLIENT_ID": "auth-code-client",
+              "OPID_CLIENT_SECRET": "mySecretHydraWA2022",
+              "OPID_CLIENT_ISSUER": "https://publichydra-"+url,
+              "OPID_CLIENT_REDIRECT_URL": "https://"+url+"/oauth/hydra",
+              "OPID_LOGIN_SCREEN_PROVIDER": "https://pusher-"+url+"/login-screen",
+              "START_ROOM_URL": "/_/global/maps-"+url+"/starter/map.json",
+            } else {})
+          },
+    "front": {
+      "image": "thecodingmachine/workadventure-front:"+tag,
+      "host": {
+        "url": "play-"+url,
+      },
+      "ports": [80],
+      "env": {
+        "PUSHER_URL": "//pusher-"+url,
+        "UPLOADER_URL": "//uploader-"+url,
+        "ADMIN_URL": "//"+url,
+        "JITSI_URL": env.JITSI_URL,
+        #POSTHOG
+        "POSTHOG_API_KEY": if namespace == "master" then env.POSTHOG_API_KEY else "",
+        "POSTHOG_URL": if namespace == "master" then env.POSTHOG_URL else "",
+        "SECRET_JITSI_KEY": env.SECRET_JITSI_KEY,
+        "TURN_SERVER": "turn:coturn.workadventu.re:443,turns:coturn.workadventu.re:443",
+        "JITSI_PRIVATE_MODE": if env.SECRET_JITSI_KEY != '' then "true" else "false",
+        "ICON_URL": "//icon-"+url,
+      }
+    },
+    "uploader": {
+           "image": "thecodingmachine/workadventure-uploader:"+tag,
+           "host": {
+             "url": "uploader-"+url,
+             "containerPort": 8080
+           },
+           "ports": [8080],
+           "env": {
+           }
+         },
+    "maps": {
+      "image": "thecodingmachine/workadventure-maps:"+tag,
+      "host": {
+        "url": "maps-"+url
+      },
+      "ports": [80],
+      "env": {
+          "FRONT_URL": "https://play-"+url
+      }
+    },
+    "redis": {
+      "image": "redis:6",
+      "ports": [6379]
+    },
+    "iconserver": {
+      "image": "matthiasluedtke/iconserver:v3.13.0",
+      "host": {
+        "url": "icon-"+url,
+        "containerPort": 8080,
+      },
+      "ports": [8080]
+    },
+  },
+  "config": {
+    k8sextension(k8sConf)::
+        k8sConf + {
+          back1+: {
+            deployment+: {
+              spec+: {
+                template+: {
+                  metadata+: {
+                    annotations+: {
+                      "prometheus.io/port": "8080",
+                      "prometheus.io/scrape": "true"
+                    }
+                  }
+                }
+              }
+            },
+            ingress+: {
+              spec+: {
+                tls+: [{
+                  hosts: ["api1-"+url],
+                  secretName: "certificate-tls"
+                }]
+              }
+            }
+          },
+          back2+: {
+            deployment+: {
+              spec+: {
+                template+: {
+                  metadata+: {
+                    annotations+: {
+                      "prometheus.io/port": "8080",
+                      "prometheus.io/scrape": "true"
+                    }
+                  }
+                }
+              }
+            },
+            ingress+: {
+              spec+: {
+                tls+: [{
+                  hosts: ["api2-"+url],
+                  secretName: "certificate-tls"
+                }]
+              }
+            }
+          },
+          pusher+: {
+            deployment+: {
+              spec+: {
+                template+: {
+                  metadata+: {
+                    annotations+: {
+                      "prometheus.io/port": "8080",
+                      "prometheus.io/scrape": "true"
+                    }
+                  }
+                }
+              }
+            },
+            ingress+: {
+              spec+: {
+                tls+: [{
+                  hosts: ["pusher-"+url],
+                  secretName: "certificate-tls"
+                }]
+              }
+             }
+          },
+          front+: {
+            ingress+: {
+              spec+: {
+                tls+: [{
+                  hosts: ["play-"+url],
+                  secretName: "certificate-tls"
+                }]
+              }
+             }
+          },
+          uploader+: {
+            ingress+: {
+              spec+: {
+                tls+: [{
+                  hosts: ["uploader-"+url],
+                  secretName: "certificate-tls"
+                }]
+              }
+             }
+          },
+          maps+: {
+            ingress+: {
+              spec+: {
+                tls+: [{
+                  hosts: ["maps-"+url],
+                  secretName: "certificate-tls"
+                }]
+              }
+             }
+          },
+          iconserver+: {
+            ingress+: {
+              spec+: {
+                tls+: [{
+                  hosts: ["icon-"+url],
+                  secretName: "certificate-tls"
+                }]
+              }
+             }
+          },
+        }
+  }
+}

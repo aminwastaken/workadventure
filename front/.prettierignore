@@ -1,0 +1,3 @@
+src/Messages/generated
+src/Messages/JsonMessages
+src/i18n/i18n-*.ts
