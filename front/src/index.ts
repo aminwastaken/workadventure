@@ -148,7 +148,6 @@ HtmlUtils.querySelectorOrFail("#game canvas").addEventListener("contextmenu", fu
 
 window.addEventListener("resize", function () {
     coWebsiteManager.resetStyleMain();
-
     waScaleManager.applyNewSize();
     waScaleManager.refreshFocusOnTarget();
 });
@@ -168,8 +167,10 @@ const app = new App({
     },
 });
 
-WA.onInit().then(() => {
-    console.log('Hello world, also hi ', WA.player.name);
-});
+// WA.onInit().then(() => {
+//     console.log('Hello world, also hi ', WA.player.name);
+// });
+
+
 
 export default app;

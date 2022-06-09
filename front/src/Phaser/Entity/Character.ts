@@ -43,6 +43,10 @@ export abstract class Character extends Container implements OutlineableInterfac
     private readonly outlineColorStore = createColorStore();
     private readonly outlineColorStoreUnsubscribe: Unsubscriber;
     private texturePromise: CancelablePromise<string[] | void> | undefined;
+    private direction: PlayerAnimationDirections;
+    private moving: boolean = false;
+    private frame: string | number;
+    private localTexturesPromise: CancelablePromise<string[]>;
 
     /**
      * A deferred promise that resolves when the texture of the character is actually displayed.
@@ -65,11 +69,17 @@ export abstract class Character extends Container implements OutlineableInterfac
         super(scene, x, y /*, texture, frame*/);
         this.scene = scene;
         this.playerName = name;
-        this.invisible = true;
+        // this.invisible = true;
         this.clickable = false;
+
+        this.direction = direction;
+        this.moving = moving;
+        this.frame = frame;
+        this.localTexturesPromise = texturesPromise;
 
         this.sprites = new Map<string, Sprite>();
         this._pictureStore = writable(undefined);
+
 
         //textures are inside a Promise in case they need to be lazyloaded before use.
         this.texturePromise = texturesPromise
@@ -272,6 +282,44 @@ export abstract class Character extends Container implements OutlineableInterfac
             this.sprites.set(texture, sprite);
         }
     }
+
+    // changing the player's skin
+    public changeTextures(): void {
+
+
+        console.log("changing textures");
+
+
+        lazyLoadPlayerCharacterTextures(this.scene.superLoad, [
+            // {
+            //     id: "color_22",
+            //     img: "resources/customisation/character_color/character_color21.png",
+            // },
+            // {
+            //     id: "eyes_23",
+            //     img: "resources/customisation/character_eyes/character_eyes23.png",
+            // },
+            {
+                id: "clothes29",
+                img: "resources/customisation/character_clothes/character_clothes29.png",
+            }
+        ]).then((textures) => {
+            this.addTextures(textures, this.frame);
+            this.invisible = false;
+            this.playAnimation(this.direction, this.moving);
+            this.textureLoadedDeferred.resolve();
+            return this.getSnapshot().then((htmlImageElementSrc) => {
+                this._pictureStore.set(htmlImageElementSrc);
+            });
+        })
+        .catch((e) => {
+            this.textureLoadedDeferred.reject(e);
+            throw e;
+        });
+    }
+
+
+  
 
     private getOutlinePlugin(): OutlinePipelinePlugin | undefined {
         return this.scene.plugins.get("rexOutlinePipeline") as unknown as OutlinePipelinePlugin | undefined;

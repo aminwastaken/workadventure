@@ -36,6 +36,7 @@ class App {
         if (ENABLE_OPENAPI_ENDPOINT) {
             new SwaggerController(webserver);
         }
+
     }
 }
 
