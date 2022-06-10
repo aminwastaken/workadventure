@@ -283,10 +283,37 @@ export abstract class Character extends Container implements OutlineableInterfac
         }
     }
 
+
+
+    private addTexturesCopy(textures: string[], frame?: string | number): void {
+        if (textures.length < 1) {
+            throw new TextureError("no texture given");
+        }
+
+        for (const texture of textures) {
+            if (this.scene && !this.scene.textures.exists(texture)) {
+                throw new TextureError("texture not found");
+            }
+            const sprite = new Sprite(this.scene, 0, 0, texture, frame);
+            this.add(sprite);
+            getPlayerAnimations(texture).forEach((d) => {
+                this.scene.anims.create({
+                    key: d.key,
+                    frames: this.scene.anims.generateFrameNumbers(d.frameModel, { frames: d.frames }),
+                    frameRate: d.frameRate,
+                    repeat: d.repeat,
+                });
+            });
+            // Needed, otherwise, animations are not handled correctly.
+            if (this.scene) {
+                this.scene.sys.updateList.add(sprite);
+            }
+            this.sprites.set(texture, sprite);
+        }
+    }
+
     // changing the player's skin
-    public changeTextures(): void {
-
-
+    public changeSkin(): void {
         console.log("changing textures");
 
 
@@ -312,14 +339,72 @@ export abstract class Character extends Container implements OutlineableInterfac
                 this._pictureStore.set(htmlImageElementSrc);
             });
         })
-        .catch((e) => {
-            this.textureLoadedDeferred.reject(e);
-            throw e;
-        });
+            .catch((e) => {
+                this.textureLoadedDeferred.reject(e);
+                throw e;
+            });
     }
 
 
-  
+    public resetSkin(): void {
+
+
+        for (const sprite of this.sprites.values()) {
+            if (this.scene) {
+                this.scene.sys.updateList.remove(sprite);
+                this.remove(sprite);
+            }
+        }
+        // this.texturePromise?.cancel();
+        // this.list.forEach((objectContaining) => objectContaining.destroy());
+        // this.outlineColorStoreUnsubscribe();
+        // super.destroy();
+
+
+
+        this.texturePromise = this.localTexturesPromise
+            .then((textures) => {
+                this.addTextures(textures, this.frame);
+                this.invisible = false;
+                this.playAnimation(this.direction, this.moving);
+                this.textureLoadedDeferred.resolve();
+                return this.getSnapshot().then((htmlImageElementSrc) => {
+                    this._pictureStore.set(htmlImageElementSrc);
+                });
+            })
+            .catch(() => {
+                console.log("inside the catch")
+                return lazyLoadPlayerCharacterTextures(this.scene.superLoad, [
+                    {
+                        id: "color_22",
+                        img: "resources/customisation/character_color/character_color21.png",
+                    },
+                    {
+                        id: "eyes_23",
+                        img: "resources/customisation/character_eyes/character_eyes23.png",
+                    },
+                ])
+                    .then((textures) => {
+                        this.addTextures(textures, this.frame);
+                        this.invisible = false;
+                        this.playAnimation(this.direction, this.moving);
+                        this.textureLoadedDeferred.resolve();
+                        return this.getSnapshot().then((htmlImageElementSrc) => {
+                            this._pictureStore.set(htmlImageElementSrc);
+                        });
+                    })
+                    .catch((e) => {
+                        this.textureLoadedDeferred.reject(e);
+                        throw e;
+                    });
+            })
+            .finally(() => {
+                this.texturePromise = undefined;
+            });
+    }
+
+
+
 
     private getOutlinePlugin(): OutlinePipelinePlugin | undefined {
         return this.scene.plugins.get("rexOutlinePipeline") as unknown as OutlinePipelinePlugin | undefined;

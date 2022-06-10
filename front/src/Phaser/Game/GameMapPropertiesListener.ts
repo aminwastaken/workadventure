@@ -215,17 +215,15 @@ export class GameMapPropertiesListener {
 
         this.gameMap.onEnterLayer((newLayers) => {
             this.onEnterPlaceHandler(newLayers);
-            console.log("layer changer")
-            console.log(newLayers)
             for(let i = 0; i < newLayers.length; i++){
                 if(newLayers[i].name === "matcharea"){
                     // changing the player's skin
-                    this.scene.CurrentPlayer.changeTextures()
+                    this.scene.CurrentPlayer.changeSkin()
                 }
                 if(newLayers[i].name === "outside"){
                     // reseting the player's skin
                     console.log("outside now")
-                    // this.scene.CurrentPlayer.destroy()
+                    this.scene.CurrentPlayer.resetSkin()
                 }
             }
         });
