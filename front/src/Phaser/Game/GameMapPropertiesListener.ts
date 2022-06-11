@@ -216,15 +216,19 @@ export class GameMapPropertiesListener {
         this.gameMap.onEnterLayer((newLayers) => {
             this.onEnterPlaceHandler(newLayers);
             for(let i = 0; i < newLayers.length; i++){
-                if(newLayers[i].name === "matcharea"){
-                    // changing the player's skin
-                    this.scene.CurrentPlayer.changeSkin()
-                }
                 if(newLayers[i].name === "outside"){
                     // reseting the player's skin
-                    console.log("outside now")
                     this.scene.CurrentPlayer.resetSkin()
                 }
+                if(newLayers[i].name === "matcharea"){
+                    // changing the player's skin
+                    this.scene.CurrentPlayer.changeSkin("clothes51")
+                }
+                if(newLayers[i].name === "matcharea2"){
+                    // changing the player's skin
+                    this.scene.CurrentPlayer.changeSkin("clothes54")
+                }
+
             }
         });
 

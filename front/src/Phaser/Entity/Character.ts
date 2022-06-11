@@ -313,22 +313,14 @@ export abstract class Character extends Container implements OutlineableInterfac
     }
 
     // changing the player's skin
-    public changeSkin(): void {
+    public changeSkin(clothes: string): void {
         console.log("changing textures");
 
 
         lazyLoadPlayerCharacterTextures(this.scene.superLoad, [
-            // {
-            //     id: "color_22",
-            //     img: "resources/customisation/character_color/character_color21.png",
-            // },
-            // {
-            //     id: "eyes_23",
-            //     img: "resources/customisation/character_eyes/character_eyes23.png",
-            // },
             {
-                id: "clothes29",
-                img: "resources/customisation/character_clothes/character_clothes29.png",
+                id: clothes,
+                img: "resources/customisation/character_clothes/character_"+clothes+".png",
             }
         ]).then((textures) => {
             this.addTextures(textures, this.frame);
@@ -355,12 +347,6 @@ export abstract class Character extends Container implements OutlineableInterfac
                 this.remove(sprite);
             }
         }
-        // this.texturePromise?.cancel();
-        // this.list.forEach((objectContaining) => objectContaining.destroy());
-        // this.outlineColorStoreUnsubscribe();
-        // super.destroy();
-
-
 
         this.texturePromise = this.localTexturesPromise
             .then((textures) => {
